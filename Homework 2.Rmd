@@ -1,0 +1,75 @@
+---
+title: "Homework 2"
+output: html_document
+date: "2024-10-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rsconnect)
+    rsconnect::deployApp('C:/Users/tommy/Desktop/UW Madison/senior/stat 436/Homework 2')
+```
+
+```{r}
+library(shiny)
+library(ggplot2)
+library(dplyr)
+data = read.csv("mumbai.csv")
+head(data)
+```
+
+```{r}
+colnames(data) = make.names(colnames(data))
+
+ui = fluidPage(
+  titlePanel("Mumbai Hotel"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("ratingInput", "Select Hotel Rating:",
+                  min = min(data$Rating, na.rm = TRUE),
+                  max = max(data$Rating, na.rm = TRUE),
+                  value = c(3, 5), step = 0.1),
+      selectInput("ratingDescInput", "Select Rating Description:",
+                  choices = unique(data$Rating.Description),
+                  selected = "Very Good")
+    ),
+    mainPanel(
+      plotOutput("scatterPlot", brush = brushOpts(id = "plotBrush")),
+      tableOutput("hotelTable")
+    )
+  )
+)
+
+server = function(input, output) {
+  output$scatterPlot = renderPlot({
+    ggplot(data, aes(x = Distance.to.Landmark, y = Price)) +
+      geom_point() +
+      labs(title = "Distance vs. Price Plot", x = "Distance (m)", y = "Price") +
+      theme_minimal()
+  })
+  selected = reactive({
+    brushed = brushedPoints(data, input$plotBrush, xvar = "Distance.to.Landmark", yvar = "Price")
+    if (nrow(brushed) > 0) {
+      filtered = brushed |>
+        filter(Rating >= input$ratingInput[1] & Rating <= input$ratingInput[2],
+               Rating.Description == input$ratingDescInput)
+    } else {
+      filtered = data |>
+        filter(Rating >= input$ratingInput[1] & Rating <= input$ratingInput[2],
+               Rating.Description == input$ratingDescInput)
+    }
+    
+    filtered
+  })
+  output$hotelTable = renderTable({
+    selected()
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
